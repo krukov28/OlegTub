@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>OlegTube — ретро-лента с Firebase</title>
-    <!-- Font Awesome 6 (иконки) -->
+    <title>OlegTube — ретро-лента с медиа</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Подключаем внешний CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,7 +12,7 @@
 <div class="app-container">
     <div class="app-header">
         <h1>OlegTube</h1>
-        <p>✦ Firebase Cloud • ретро-лента ✦</p>
+        <p>✦ фото • видео • текст • ретро-лента ✦</p>
     </div>
 
     <div class="feed-area" id="mainContentArea">
@@ -27,18 +25,20 @@
             <input type="text" id="searchInput" class="search-input" placeholder="🔍 Поиск по имени или тексту поста..." autocomplete="off">
             <div id="searchResultsContainer"></div>
         </div>
-        <!-- Панель PROFILE -->
+        <!-- Панель PROFILE (теперь с постами пользователя) -->
         <div id="profilePanel" class="hide">
             <div class="profile-card">
                 <div class="big-avatar" id="profileAvatar">О</div>
                 <h2 id="profileName" style="color:#1f4462;">Загрузка...</h2>
-                <p style="color:#2c5e7e;" id="profileEmail">@olegtube_firebase</p>
+                <p style="color:#2c5e7e;" id="profileEmail">@olegtube_user</p>
                 <div class="info-message">
                     <i class="fas fa-database"></i> <strong>облачная лента</strong><br>
                     📝 ваших постов: <span id="userPostCount">0</span><br>
                     🔥 данные хранятся в Firebase
                 </div>
             </div>
+            <!-- Список постов пользователя -->
+            <div id="userPostsContainer" class="user-posts-container"></div>
         </div>
     </div>
 
@@ -63,12 +63,30 @@
     </div>
 </div>
 
-<!-- Модалка создания поста -->
+<!-- Модалка создания поста (с загрузкой медиа) -->
 <div id="createModal" class="modal-overlay">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 500px;">
         <h3><i class="fas fa-pen-fancy"></i> Новый пост</h3>
-        <p style="color:#2e6a91;">Ваш пост сохранится в Firebase навсегда!</p>
+        <p style="color:#2e6a91;">Добавьте текст, фото или видео</p>
+        
+        <!-- Предпросмотр медиа -->
+        <div id="mediaPreview" style="display: none; margin: 10px 0; position: relative;">
+            <img id="imagePreview" style="max-width: 100%; border-radius: 16px; display: none;">
+            <video id="videoPreview" style="max-width: 100%; border-radius: 16px; display: none;" controls></video>
+            <button id="removeMediaBtn" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;">✕</button>
+        </div>
+        
+        <!-- Поле для текста -->
         <textarea id="postTextInput" rows="3" placeholder="Напишите что-нибудь..."></textarea>
+        
+        <!-- Кнопки загрузки медиа -->
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button type="button" id="uploadImageBtn" class="media-btn"><i class="fas fa-image"></i> Фото</button>
+            <button type="button" id="uploadVideoBtn" class="media-btn"><i class="fas fa-video"></i> Видео</button>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <input type="file" id="videoInput" accept="video/*" style="display: none;">
+        </div>
+        
         <div class="modal-actions">
             <button id="cancelModalBtn">Отмена</button>
             <button id="confirmPostBtn" class="primary">Опубликовать</button>
@@ -77,23 +95,26 @@
 </div>
 
 <script type="module">
-    // ========== ИМПОРТ FIREBASE МОДУЛЯ ==========
     import { 
         getAllPosts, 
         addPost, 
         toggleLike, 
         searchPosts,
         getUserName,
-        setUserName,
         getUserId,
+        getUserPosts,
         getUserPostCount,
-        subscribeToPosts
+        subscribeToPosts,
+        uploadMedia,
+        deletePost
     } from './firebase-config.js';
 
     // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
     let currentPanel = 'home';
     let allPosts = [];
     let unsubscribeRealtime = null;
+    let currentMediaFile = null;
+    let currentMediaType = null;
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
     function formatRelativeTime(dateObj) {
@@ -120,13 +141,24 @@
         });
     }
 
+    // Отображение медиа в посте
+    function renderMedia(mediaUrl, mediaType) {
+        if (!mediaUrl) return '';
+        if (mediaType === 'image') {
+            return `<img src="${escapeHtml(mediaUrl)}" style="max-width: 100%; border-radius: 12px; margin-top: 12px; cursor: pointer;" onclick="window.open('${escapeHtml(mediaUrl)}', '_blank')">`;
+        } else if (mediaType === 'video') {
+            return `<video src="${escapeHtml(mediaUrl)}" style="max-width: 100%; border-radius: 12px; margin-top: 12px;" controls></video>`;
+        }
+        return '';
+    }
+
     // ========== ОТОБРАЖЕНИЕ ЛЕНТЫ ==========
     async function renderFeed() {
         const container = document.getElementById('postsContainer');
         if (!container) return;
         
         if (allPosts.length === 0) {
-            container.innerHTML = `<div class="empty-feed"><i class="fas fa-cloud-upload-alt"></i> <br/> Нет постов. Нажмите «Создать» и добавьте первое сообщение в Firebase!</div>`;
+            container.innerHTML = `<div class="empty-feed"><i class="fas fa-cloud-upload-alt"></i> <br/> Нет постов. Нажмите «Создать» и добавьте первое сообщение!</div>`;
             return;
         }
         
@@ -138,6 +170,7 @@
             const likesCount = post.likesCount || 0;
             const likeIcon = hasLiked ? "fas fa-heart" : "far fa-heart";
             const likeColor = hasLiked ? "style='color:#e74c3c;'" : "";
+            const isAuthor = post.userId === userId;
             
             return `
                 <div class="post-card" data-post-id="${post.id}">
@@ -147,8 +180,10 @@
                             <div class="author-name">${escapeHtml(post.author)}</div>
                             <div class="post-date">${timeAgo}</div>
                         </div>
+                        ${isAuthor ? `<button class="delete-post-btn" data-id="${post.id}" style="background:none; border:none; color:#e74c3c; cursor:pointer;"><i class="fas fa-trash"></i></button>` : ''}
                     </div>
                     <div class="post-text">${escapeHtml(post.text)}</div>
+                    ${renderMedia(post.mediaUrl, post.mediaType)}
                     <div class="post-actions">
                         <span class="like-btn" data-post-id="${post.id}" style="cursor:pointer;">
                             <i class="${likeIcon}" ${likeColor}></i> <span class="likes-count">${likesCount}</span>
@@ -159,13 +194,24 @@
             `;
         }).join('');
         
-        // Добавляем обработчики лайков
+        // Обработчики лайков
         document.querySelectorAll('.like-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const postId = btn.getAttribute('data-post-id');
                 await toggleLike(postId);
                 await loadPostsAndUpdate();
+            });
+        });
+        
+        // Обработчики удаления постов
+        document.querySelectorAll('.delete-post-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm("Удалить этот пост?")) {
+                    await deletePost(btn.getAttribute('data-id'));
+                    await loadPostsAndUpdate();
+                }
             });
         });
     }
@@ -194,12 +240,60 @@
                         <div><strong>${escapeHtml(post.author)}</strong> · ${timeAgo}</div>
                     </div>
                     <div style="margin-top: 8px; color:#1e3c54;">${escapeHtml(post.text.substring(0, 130))}${post.text.length > 130 ? '…' : ''}</div>
+                    ${post.mediaUrl ? `<div style="margin-top: 8px;"><i class="fas fa-${post.mediaType === 'image' ? 'image' : 'video'}"></i> Медиа</div>` : ''}
                 </div>
             `;
         }).join('');
     }
 
-    // ========== ОБНОВЛЕНИЕ ПРОФИЛЯ ==========
+    // ========== ПРОФИЛЬ С ПОСТАМИ ПОЛЬЗОВАТЕЛЯ ==========
+    async function renderUserPosts() {
+        const container = document.getElementById('userPostsContainer');
+        if (!container) return;
+        
+        const userId = getUserId();
+        const userPosts = await getUserPosts();
+        
+        if (userPosts.length === 0) {
+            container.innerHTML = `<div class="empty-feed" style="margin-top: 20px;"><i class="fas fa-pen"></i> <br/> У вас пока нет постов. Создайте первый!</div>`;
+            return;
+        }
+        
+        container.innerHTML = `<h3 style="margin: 20px 0 16px 0; color: #1f4462;"><i class="fas fa-list"></i> Мои посты (${userPosts.length})</h3>` + 
+            userPosts.map(post => {
+            const timeAgo = formatRelativeTime(post.timestamp);
+            const initial = post.author.charAt(0).toUpperCase();
+            
+            return `
+                <div class="post-card" data-post-id="${post.id}" style="margin-bottom: 16px;">
+                    <div class="post-author">
+                        <div class="avatar">${escapeHtml(initial)}</div>
+                        <div class="author-info">
+                            <div class="author-name">${escapeHtml(post.author)}</div>
+                            <div class="post-date">${timeAgo}</div>
+                        </div>
+                        <button class="delete-post-btn" data-id="${post.id}" style="background:none; border:none; color:#e74c3c; cursor:pointer;"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="post-text">${escapeHtml(post.text)}</div>
+                    ${renderMedia(post.mediaUrl, post.mediaType)}
+                </div>
+            `;
+        }).join('');
+        
+        // Обработчики удаления в профиле
+        document.querySelectorAll('#userPostsContainer .delete-post-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm("Удалить этот пост?")) {
+                    await deletePost(btn.getAttribute('data-id'));
+                    await loadPostsAndUpdate();
+                    await renderUserPosts();
+                    await updateProfile();
+                }
+            });
+        });
+    }
+
     async function updateProfile() {
         const profileName = document.getElementById('profileName');
         const profileAvatar = document.getElementById('profileAvatar');
@@ -211,6 +305,8 @@
         
         const userPostCount = await getUserPostCount();
         userPostCountSpan.innerText = userPostCount;
+        
+        await renderUserPosts();
     }
 
     // ========== ЗАГРУЗКА ПОСТОВ И ОБНОВЛЕНИЕ ==========
@@ -293,35 +389,100 @@
         if (panel === 'profile') navProfile.classList.add('active');
     }
 
-    // ========== МОДАЛКА СОЗДАНИЯ ПОСТА ==========
+    // ========== МОДАЛКА С ЗАГРУЗКОЙ МЕДИА ==========
     const modal = document.getElementById('createModal');
     const postTextarea = document.getElementById('postTextInput');
     const confirmPostBtn = document.getElementById('confirmPostBtn');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const imageInput = document.getElementById('imageInput');
+    const videoInput = document.getElementById('videoInput');
+    const uploadImageBtn = document.getElementById('uploadImageBtn');
+    const uploadVideoBtn = document.getElementById('uploadVideoBtn');
+    const mediaPreview = document.getElementById('mediaPreview');
+    const imagePreview = document.getElementById('imagePreview');
+    const videoPreview = document.getElementById('videoPreview');
+    const removeMediaBtn = document.getElementById('removeMediaBtn');
+
+    function clearMediaPreview() {
+        currentMediaFile = null;
+        currentMediaType = null;
+        imagePreview.style.display = 'none';
+        videoPreview.style.display = 'none';
+        imagePreview.src = '';
+        videoPreview.src = '';
+        mediaPreview.style.display = 'none';
+    }
+
+    uploadImageBtn.onclick = () => imageInput.click();
+    uploadVideoBtn.onclick = () => videoInput.click();
+    
+    imageInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            currentMediaFile = file;
+            currentMediaType = 'image';
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imagePreview.src = event.target.result;
+                imagePreview.style.display = 'block';
+                videoPreview.style.display = 'none';
+                mediaPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    videoInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('video/')) {
+            currentMediaFile = file;
+            currentMediaType = 'video';
+            const url = URL.createObjectURL(file);
+            videoPreview.src = url;
+            videoPreview.style.display = 'block';
+            imagePreview.style.display = 'none';
+            mediaPreview.style.display = 'block';
+        }
+    };
+    
+    removeMediaBtn.onclick = clearMediaPreview;
 
     function openModal() {
         postTextarea.value = '';
+        clearMediaPreview();
+        imageInput.value = '';
+        videoInput.value = '';
         modal.classList.add('active');
     }
     
     function closeModal() {
         modal.classList.remove('active');
+        clearMediaPreview();
     }
     
     async function submitPost() {
         const text = postTextarea.value;
-        if (!text.trim()) {
-            alert("Напишите что-нибудь ✨");
+        if (!text.trim() && !currentMediaFile) {
+            alert("Напишите что-нибудь или добавьте фото/видео ✨");
             return;
         }
         
         try {
-            await addPost(text);
+            let mediaUrl = null;
+            let mediaType = null;
+            
+            if (currentMediaFile) {
+                const uploadResult = await uploadMedia(currentMediaFile, currentMediaType);
+                mediaUrl = uploadResult.url;
+                mediaType = currentMediaType;
+            }
+            
+            await addPost(text, mediaUrl, mediaType);
             closeModal();
             await loadPostsAndUpdate();
         } catch (error) {
             console.error("Ошибка при создании поста:", error);
-            alert("Не удалось создать пост. Проверьте подключение к Firebase.");
+            alert("Не удалось создать пост. Проверьте подключение.");
         }
     }
 
@@ -329,7 +490,6 @@
     async function init() {
         console.log("🚀 OlegTube инициализация...");
         
-        // Настройка обработчиков
         navHome.addEventListener('click', () => setActivePanel('home'));
         navSearch.addEventListener('click', () => setActivePanel('search'));
         navProfile.addEventListener('click', () => setActivePanel('profile'));
@@ -344,17 +504,14 @@
             }
         });
         
-        // Загрузка данных и настройка реалтайма
         await loadPostsAndUpdate();
         setupRealtimeUpdates();
         setActivePanel('home');
         
         console.log("✅ OlegTube готов!");
         console.log("👤 Пользователь:", getUserName());
-        console.log("🆔 ID:", getUserId());
     }
     
-    // Запуск приложения
     init();
 </script>
 </body>
