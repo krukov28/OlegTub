@@ -301,6 +301,16 @@ body {
     border: 1px solid #f3cd81;
 }
 
+.user-posts-container {
+    margin-top: 20px;
+    padding-bottom: 20px;
+}
+
+.user-posts-container h3 {
+    margin: 20px 0 16px 0;
+    color: #1f4462;
+}
+
 .hide {
     display: none;
 }
@@ -358,6 +368,21 @@ body {
     border-color: #3b6e9e;
 }
 
+.media-btn {
+    background: #e2edf9;
+    border: 1px solid #bdd4e8;
+    padding: 8px 16px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    transition: all 0.1s;
+}
+
+.media-btn:hover {
+    background: #cfe3fc;
+}
+
 .modal-actions button {
     padding: 8px 20px;
     border-radius: 30px;
@@ -377,6 +402,22 @@ body {
 .modal-actions button:hover {
     transform: scale(0.98);
     opacity: 0.9;
+}
+
+.delete-post-btn {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.1s;
+}
+
+.delete-post-btn:hover {
+    background: rgba(231, 76, 60, 0.1);
+    transform: scale(1.1);
 }
 
 button {
