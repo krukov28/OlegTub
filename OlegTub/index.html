@@ -1,518 +1,240 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>OlegTube — ретро-лента с медиа</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-<div class="app-container">
-    <div class="app-header">
-        <h1>OlegTube</h1>
-        <p>✦ фото • видео • текст • ретро-лента ✦</p>
-    </div>
+body {
+    font-family: 'Roboto', sans-serif;
+    background: #d0e2f2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+}
 
-    <div class="feed-area" id="mainContentArea">
-        <!-- Панель HOME (лента) -->
-        <div id="feedPanel">
-            <div id="postsContainer"></div>
-        </div>
-        <!-- Панель SEARCH -->
-        <div id="searchPanel" class="hide">
-            <input type="text" id="searchInput" class="search-input" placeholder="🔍 Поиск по имени или тексту поста..." autocomplete="off">
-            <div id="searchResultsContainer"></div>
-        </div>
-        <!-- Панель PROFILE (теперь с постами пользователя) -->
-        <div id="profilePanel" class="hide">
-            <div class="profile-card">
-                <div class="big-avatar" id="profileAvatar">О</div>
-                <h2 id="profileName" style="color:#1f4462;">Загрузка...</h2>
-                <p style="color:#2c5e7e;" id="profileEmail">@olegtube_user</p>
-                <div class="info-message">
-                    <i class="fas fa-database"></i> <strong>облачная лента</strong><br>
-                    📝 ваших постов: <span id="userPostCount">0</span><br>
-                    🔥 данные хранятся в Firebase
-                </div>
-            </div>
-            <!-- Список постов пользователя -->
-            <div id="userPostsContainer" class="user-posts-container"></div>
-        </div>
-    </div>
+/* ========== АВТОРИЗАЦИЯ ========== */
+.auth-container {
+    max-width: 400px;
+    width: 100%;
+    background: #eef4fc;
+    border-radius: 24px;
+    padding: 32px 24px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 8px 20px rgba(0,0,0,0.1);
+    border-top: 3px solid #3b6e9e;
+}
+.auth-container h2 { text-align: center; color: #1f4462; margin-bottom: 24px; }
+.auth-input {
+    width: 100%;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    border: 1px solid #b0c9e2;
+    border-radius: 30px;
+    font-size: 1rem;
+    background: white;
+}
+.auth-btn {
+    width: 100%;
+    padding: 12px;
+    background: #3b6e9e;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+.auth-btn:hover { background: #2c5a7c; }
+.switch-btn { background: none; color: #3b6e9e; border: 1px solid #3b6e9e; }
+.switch-btn:hover { background: #eef4fc; }
+.error-msg { color: #e74c3c; text-align: center; margin-bottom: 12px; font-size: 0.9rem; }
+.success-msg { color: #27ae60; text-align: center; margin-bottom: 12px; font-size: 0.9rem; }
 
-    <!-- Нижняя навигация -->
-    <div class="bottom-nav">
-        <button class="nav-item" data-nav="home" id="navHome">
-            <i class="fas fa-home"></i>
-            <span>Главная</span>
-        </button>
-        <button class="nav-item" data-nav="search" id="navSearch">
-            <i class="fas fa-search"></i>
-            <span>Поиск</span>
-        </button>
-        <button class="nav-item create-btn-nav" id="navCreatePost">
-            <i class="fas fa-plus-circle"></i>
-            <span>Создать</span>
-        </button>
-        <button class="nav-item" data-nav="profile" id="navProfile">
-            <i class="fas fa-user-alt"></i>
-            <span>Профиль</span>
-        </button>
-    </div>
-</div>
+/* ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ========== */
+.app-container {
+    max-width: 580px;
+    width: 100%;
+    background: #eef4fc;
+    border-radius: 12px;
+    overflow: hidden;
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+    border-top: 3px solid #3b6e9e;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 8px 20px rgba(0,0,0,0.1);
+}
+.app-header {
+    background: #3b6e9e;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.app-header h1 { font-size: 1.9rem; color: white; }
+.logout-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+}
+.feed-area { flex: 1; overflow-y: auto; padding: 16px; }
+.feed-area::-webkit-scrollbar { width: 8px; }
+.feed-area::-webkit-scrollbar-track { background: #cbdde9; border-radius: 10px; }
+.feed-area::-webkit-scrollbar-thumb { background: #4a7ca5; border-radius: 10px; }
 
-<!-- Модалка создания поста (с загрузкой медиа) -->
-<div id="createModal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 500px;">
-        <h3><i class="fas fa-pen-fancy"></i> Новый пост</h3>
-        <p style="color:#2e6a91;">Добавьте текст, фото или видео</p>
-        
-        <!-- Предпросмотр медиа -->
-        <div id="mediaPreview" style="display: none; margin: 10px 0; position: relative;">
-            <img id="imagePreview" style="max-width: 100%; border-radius: 16px; display: none;">
-            <video id="videoPreview" style="max-width: 100%; border-radius: 16px; display: none;" controls></video>
-            <button id="removeMediaBtn" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;">✕</button>
-        </div>
-        
-        <!-- Поле для текста -->
-        <textarea id="postTextInput" rows="3" placeholder="Напишите что-нибудь..."></textarea>
-        
-        <!-- Кнопки загрузки медиа -->
-        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-            <button type="button" id="uploadImageBtn" class="media-btn"><i class="fas fa-image"></i> Фото</button>
-            <button type="button" id="uploadVideoBtn" class="media-btn"><i class="fas fa-video"></i> Видео</button>
-            <input type="file" id="imageInput" accept="image/*" style="display: none;">
-            <input type="file" id="videoInput" accept="video/*" style="display: none;">
-        </div>
-        
-        <div class="modal-actions">
-            <button id="cancelModalBtn">Отмена</button>
-            <button id="confirmPostBtn" class="primary">Опубликовать</button>
-        </div>
-    </div>
-</div>
+/* ========== ПОСТЫ ========== */
+.post-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #bdd4e8;
+}
+.avatar {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #2c6e9e, #1f4e73);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+.post-author { display: flex; gap: 12px; align-items: center; }
+.author-name { font-weight: bold; color: #0f2e4a; }
+.post-date { font-size: 0.7rem; color: #6c8eae; margin-top: 2px; }
+.post-text { margin-top: 12px; color: #1a2c3e; word-break: break-word; }
+.post-media { margin-top: 12px; border-radius: 16px; overflow: hidden; max-height: 400px; }
+.post-media img, .post-media video { width: 100%; max-height: 400px; object-fit: contain; background: #000; }
+.post-actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 24px;
+    color: #5b7f9e;
+    cursor: pointer;
+}
+.post-actions span:hover { color: #e74c3c; }
+.empty-feed { text-align: center; padding: 48px; color: #6c8eae; }
 
-<script type="module">
-    import { 
-        getAllPosts, 
-        addPost, 
-        toggleLike, 
-        searchPosts,
-        getUserName,
-        getUserId,
-        getUserPosts,
-        getUserPostCount,
-        subscribeToPosts,
-        uploadMedia,
-        deletePost
-    } from './firebase-config.js';
+/* ========== НАВИГАЦИЯ ========== */
+.bottom-nav {
+    background: #2c5a7c;
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 12px;
+}
+.nav-item {
+    background: none;
+    border: none;
+    color: #d4e6fc;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 0.7rem;
+}
+.nav-item i { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+.nav-item.active { background: #1f4a6e; color: #ffdd99; }
+.create-btn-nav { background: #f4b642; color: #2c3e2b; border-radius: 40px; display: flex; align-items: center; gap: 8px; }
+.hide { display: none; }
 
-    // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
-    let currentPanel = 'home';
-    let allPosts = [];
-    let unsubscribeRealtime = null;
-    let currentMediaFile = null;
-    let currentMediaType = null;
+/* ========== МОДАЛКА ========== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    opacity: 0;
+    transition: 0.2s;
+    z-index: 1000;
+}
+.modal-overlay.active { visibility: visible; opacity: 1; }
+.modal-card {
+    background: white;
+    border-radius: 24px;
+    padding: 24px;
+    width: 90%;
+    max-width: 500px;
+}
+.modal-card textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid #bdd4e8;
+    margin: 16px 0;
+    font-family: inherit;
+    resize: vertical;
+}
+.media-preview { margin: 12px 0; border-radius: 16px; overflow: hidden; max-height: 200px; }
+.media-preview img, .media-preview video { width: 100%; max-height: 200px; object-fit: contain; }
+.media-buttons { display: flex; gap: 12px; margin-bottom: 16px; }
+.media-btn {
+    background: #e2edf9;
+    border: 1px solid #bdd4e8;
+    padding: 10px 16px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.modal-actions button {
+    padding: 8px 20px;
+    border-radius: 30px;
+    border: none;
+    cursor: pointer;
+}
+.modal-actions button.primary { background: #2c6e9e; color: white; }
 
-    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
-    function formatRelativeTime(dateObj) {
-        if (!dateObj) return "только что";
-        const now = new Date();
-        const diffMs = now - dateObj;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-        if (diffMins < 1) return "только что";
-        if (diffMins < 60) return `${diffMins} мин назад`;
-        if (diffHours < 24) return `${diffHours} ч назад`;
-        if (diffDays < 7) return `${diffDays} дн назад`;
-        return dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-    }
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if(m === '&') return '&amp;';
-            if(m === '<') return '&lt;';
-            if(m === '>') return '&gt;';
-            return m;
-        });
-    }
-
-    // Отображение медиа в посте
-    function renderMedia(mediaUrl, mediaType) {
-        if (!mediaUrl) return '';
-        if (mediaType === 'image') {
-            return `<img src="${escapeHtml(mediaUrl)}" style="max-width: 100%; border-radius: 12px; margin-top: 12px; cursor: pointer;" onclick="window.open('${escapeHtml(mediaUrl)}', '_blank')">`;
-        } else if (mediaType === 'video') {
-            return `<video src="${escapeHtml(mediaUrl)}" style="max-width: 100%; border-radius: 12px; margin-top: 12px;" controls></video>`;
-        }
-        return '';
-    }
-
-    // ========== ОТОБРАЖЕНИЕ ЛЕНТЫ ==========
-    async function renderFeed() {
-        const container = document.getElementById('postsContainer');
-        if (!container) return;
-        
-        if (allPosts.length === 0) {
-            container.innerHTML = `<div class="empty-feed"><i class="fas fa-cloud-upload-alt"></i> <br/> Нет постов. Нажмите «Создать» и добавьте первое сообщение!</div>`;
-            return;
-        }
-        
-        const userId = getUserId();
-        container.innerHTML = allPosts.map(post => {
-            const timeAgo = formatRelativeTime(post.timestamp);
-            const initial = post.author.charAt(0).toUpperCase();
-            const hasLiked = post.likes && post.likes.includes(userId);
-            const likesCount = post.likesCount || 0;
-            const likeIcon = hasLiked ? "fas fa-heart" : "far fa-heart";
-            const likeColor = hasLiked ? "style='color:#e74c3c;'" : "";
-            const isAuthor = post.userId === userId;
-            
-            return `
-                <div class="post-card" data-post-id="${post.id}">
-                    <div class="post-author">
-                        <div class="avatar">${escapeHtml(initial)}</div>
-                        <div class="author-info">
-                            <div class="author-name">${escapeHtml(post.author)}</div>
-                            <div class="post-date">${timeAgo}</div>
-                        </div>
-                        ${isAuthor ? `<button class="delete-post-btn" data-id="${post.id}" style="background:none; border:none; color:#e74c3c; cursor:pointer;"><i class="fas fa-trash"></i></button>` : ''}
-                    </div>
-                    <div class="post-text">${escapeHtml(post.text)}</div>
-                    ${renderMedia(post.mediaUrl, post.mediaType)}
-                    <div class="post-actions">
-                        <span class="like-btn" data-post-id="${post.id}" style="cursor:pointer;">
-                            <i class="${likeIcon}" ${likeColor}></i> <span class="likes-count">${likesCount}</span>
-                        </span>
-                        <span><i class="far fa-comment"></i> ответить</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        // Обработчики лайков
-        document.querySelectorAll('.like-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const postId = btn.getAttribute('data-post-id');
-                await toggleLike(postId);
-                await loadPostsAndUpdate();
-            });
-        });
-        
-        // Обработчики удаления постов
-        document.querySelectorAll('.delete-post-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (confirm("Удалить этот пост?")) {
-                    await deletePost(btn.getAttribute('data-id'));
-                    await loadPostsAndUpdate();
-                }
-            });
-        });
-    }
-
-    // ========== ПОИСК ==========
-    async function performSearch(query) {
-        const resultsContainer = document.getElementById('searchResultsContainer');
-        if (!query.trim()) {
-            resultsContainer.innerHTML = `<div class="empty-feed"><i class="fas fa-search"></i>  Введите имя автора или слово из поста...</div>`;
-            return;
-        }
-        
-        const matched = await searchPosts(query);
-        if (matched.length === 0) {
-            resultsContainer.innerHTML = `<div class="empty-feed">😢 Ничего не найдено по запросу «${escapeHtml(query)}»</div>`;
-            return;
-        }
-        
-        resultsContainer.innerHTML = matched.map(post => {
-            const initial = post.author.charAt(0).toUpperCase();
-            const timeAgo = formatRelativeTime(post.timestamp);
-            return `
-                <div class="search-result-item">
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <div class="avatar" style="width:36px; height:36px; font-size:0.9rem;">${initial}</div>
-                        <div><strong>${escapeHtml(post.author)}</strong> · ${timeAgo}</div>
-                    </div>
-                    <div style="margin-top: 8px; color:#1e3c54;">${escapeHtml(post.text.substring(0, 130))}${post.text.length > 130 ? '…' : ''}</div>
-                    ${post.mediaUrl ? `<div style="margin-top: 8px;"><i class="fas fa-${post.mediaType === 'image' ? 'image' : 'video'}"></i> Медиа</div>` : ''}
-                </div>
-            `;
-        }).join('');
-    }
-
-    // ========== ПРОФИЛЬ С ПОСТАМИ ПОЛЬЗОВАТЕЛЯ ==========
-    async function renderUserPosts() {
-        const container = document.getElementById('userPostsContainer');
-        if (!container) return;
-        
-        const userId = getUserId();
-        const userPosts = await getUserPosts();
-        
-        if (userPosts.length === 0) {
-            container.innerHTML = `<div class="empty-feed" style="margin-top: 20px;"><i class="fas fa-pen"></i> <br/> У вас пока нет постов. Создайте первый!</div>`;
-            return;
-        }
-        
-        container.innerHTML = `<h3 style="margin: 20px 0 16px 0; color: #1f4462;"><i class="fas fa-list"></i> Мои посты (${userPosts.length})</h3>` + 
-            userPosts.map(post => {
-            const timeAgo = formatRelativeTime(post.timestamp);
-            const initial = post.author.charAt(0).toUpperCase();
-            
-            return `
-                <div class="post-card" data-post-id="${post.id}" style="margin-bottom: 16px;">
-                    <div class="post-author">
-                        <div class="avatar">${escapeHtml(initial)}</div>
-                        <div class="author-info">
-                            <div class="author-name">${escapeHtml(post.author)}</div>
-                            <div class="post-date">${timeAgo}</div>
-                        </div>
-                        <button class="delete-post-btn" data-id="${post.id}" style="background:none; border:none; color:#e74c3c; cursor:pointer;"><i class="fas fa-trash"></i></button>
-                    </div>
-                    <div class="post-text">${escapeHtml(post.text)}</div>
-                    ${renderMedia(post.mediaUrl, post.mediaType)}
-                </div>
-            `;
-        }).join('');
-        
-        // Обработчики удаления в профиле
-        document.querySelectorAll('#userPostsContainer .delete-post-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (confirm("Удалить этот пост?")) {
-                    await deletePost(btn.getAttribute('data-id'));
-                    await loadPostsAndUpdate();
-                    await renderUserPosts();
-                    await updateProfile();
-                }
-            });
-        });
-    }
-
-    async function updateProfile() {
-        const profileName = document.getElementById('profileName');
-        const profileAvatar = document.getElementById('profileAvatar');
-        const userPostCountSpan = document.getElementById('userPostCount');
-        
-        const userName = getUserName();
-        profileName.innerText = userName;
-        profileAvatar.innerText = userName.charAt(0).toUpperCase();
-        
-        const userPostCount = await getUserPostCount();
-        userPostCountSpan.innerText = userPostCount;
-        
-        await renderUserPosts();
-    }
-
-    // ========== ЗАГРУЗКА ПОСТОВ И ОБНОВЛЕНИЕ ==========
-    async function loadPostsAndUpdate() {
-        allPosts = await getAllPosts();
-        if (currentPanel === 'home') {
-            await renderFeed();
-        } else if (currentPanel === 'search') {
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput && searchInput.value) {
-                await performSearch(searchInput.value);
-            }
-        }
-        if (currentPanel === 'profile') {
-            await updateProfile();
-        }
-    }
-
-    // ========== НАСТРОЙКА РЕАЛТАЙМ ОБНОВЛЕНИЙ ==========
-    function setupRealtimeUpdates() {
-        if (unsubscribeRealtime) {
-            unsubscribeRealtime();
-        }
-        
-        unsubscribeRealtime = subscribeToPosts(async (updatedPosts) => {
-            allPosts = updatedPosts;
-            if (currentPanel === 'home') {
-                await renderFeed();
-            } else if (currentPanel === 'search') {
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput && searchInput.value) {
-                    await performSearch(searchInput.value);
-                }
-            }
-            if (currentPanel === 'profile') {
-                await updateProfile();
-            }
-        });
-    }
-
-    // ========== НАВИГАЦИЯ ==========
-    const feedPanelDiv = document.getElementById('feedPanel');
-    const searchPanelDiv = document.getElementById('searchPanel');
-    const profilePanelDiv = document.getElementById('profilePanel');
-    const navHome = document.getElementById('navHome');
-    const navSearch = document.getElementById('navSearch');
-    const navProfile = document.getElementById('navProfile');
-
-    function setActivePanel(panel) {
-        feedPanelDiv.classList.add('hide');
-        searchPanelDiv.classList.add('hide');
-        profilePanelDiv.classList.add('hide');
-        
-        if (panel === 'home') {
-            feedPanelDiv.classList.remove('hide');
-            renderFeed();
-            currentPanel = 'home';
-        } else if (panel === 'search') {
-            searchPanelDiv.classList.remove('hide');
-            const searchInputElem = document.getElementById('searchInput');
-            if (searchInputElem) {
-                performSearch(searchInputElem.value);
-                const handler = async (e) => await performSearch(e.target.value);
-                if (searchInputElem._listener) {
-                    searchInputElem.removeEventListener('input', searchInputElem._listener);
-                }
-                searchInputElem.addEventListener('input', handler);
-                searchInputElem._listener = handler;
-            }
-            currentPanel = 'search';
-        } else if (panel === 'profile') {
-            profilePanelDiv.classList.remove('hide');
-            updateProfile();
-            currentPanel = 'profile';
-        }
-        
-        [navHome, navSearch, navProfile].forEach(btn => btn.classList.remove('active'));
-        if (panel === 'home') navHome.classList.add('active');
-        if (panel === 'search') navSearch.classList.add('active');
-        if (panel === 'profile') navProfile.classList.add('active');
-    }
-
-    // ========== МОДАЛКА С ЗАГРУЗКОЙ МЕДИА ==========
-    const modal = document.getElementById('createModal');
-    const postTextarea = document.getElementById('postTextInput');
-    const confirmPostBtn = document.getElementById('confirmPostBtn');
-    const cancelModalBtn = document.getElementById('cancelModalBtn');
-    const imageInput = document.getElementById('imageInput');
-    const videoInput = document.getElementById('videoInput');
-    const uploadImageBtn = document.getElementById('uploadImageBtn');
-    const uploadVideoBtn = document.getElementById('uploadVideoBtn');
-    const mediaPreview = document.getElementById('mediaPreview');
-    const imagePreview = document.getElementById('imagePreview');
-    const videoPreview = document.getElementById('videoPreview');
-    const removeMediaBtn = document.getElementById('removeMediaBtn');
-
-    function clearMediaPreview() {
-        currentMediaFile = null;
-        currentMediaType = null;
-        imagePreview.style.display = 'none';
-        videoPreview.style.display = 'none';
-        imagePreview.src = '';
-        videoPreview.src = '';
-        mediaPreview.style.display = 'none';
-    }
-
-    uploadImageBtn.onclick = () => imageInput.click();
-    uploadVideoBtn.onclick = () => videoInput.click();
-    
-    imageInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            currentMediaFile = file;
-            currentMediaType = 'image';
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                imagePreview.src = event.target.result;
-                imagePreview.style.display = 'block';
-                videoPreview.style.display = 'none';
-                mediaPreview.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    
-    videoInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith('video/')) {
-            currentMediaFile = file;
-            currentMediaType = 'video';
-            const url = URL.createObjectURL(file);
-            videoPreview.src = url;
-            videoPreview.style.display = 'block';
-            imagePreview.style.display = 'none';
-            mediaPreview.style.display = 'block';
-        }
-    };
-    
-    removeMediaBtn.onclick = clearMediaPreview;
-
-    function openModal() {
-        postTextarea.value = '';
-        clearMediaPreview();
-        imageInput.value = '';
-        videoInput.value = '';
-        modal.classList.add('active');
-    }
-    
-    function closeModal() {
-        modal.classList.remove('active');
-        clearMediaPreview();
-    }
-    
-    async function submitPost() {
-        const text = postTextarea.value;
-        if (!text.trim() && !currentMediaFile) {
-            alert("Напишите что-нибудь или добавьте фото/видео ✨");
-            return;
-        }
-        
-        try {
-            let mediaUrl = null;
-            let mediaType = null;
-            
-            if (currentMediaFile) {
-                const uploadResult = await uploadMedia(currentMediaFile, currentMediaType);
-                mediaUrl = uploadResult.url;
-                mediaType = currentMediaType;
-            }
-            
-            await addPost(text, mediaUrl, mediaType);
-            closeModal();
-            await loadPostsAndUpdate();
-        } catch (error) {
-            console.error("Ошибка при создании поста:", error);
-            alert("Не удалось создать пост. Проверьте подключение.");
-        }
-    }
-
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
-    async function init() {
-        console.log("🚀 OlegTube инициализация...");
-        
-        navHome.addEventListener('click', () => setActivePanel('home'));
-        navSearch.addEventListener('click', () => setActivePanel('search'));
-        navProfile.addEventListener('click', () => setActivePanel('profile'));
-        document.getElementById('navCreatePost').addEventListener('click', openModal);
-        confirmPostBtn.addEventListener('click', submitPost);
-        cancelModalBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-        postTextarea.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                e.preventDefault();
-                submitPost();
-            }
-        });
-        
-        await loadPostsAndUpdate();
-        setupRealtimeUpdates();
-        setActivePanel('home');
-        
-        console.log("✅ OlegTube готов!");
-        console.log("👤 Пользователь:", getUserName());
-    }
-    
-    init();
-</script>
-</body>
-</html>
+/* ========== ПОИСК И ПРОФИЛЬ ========== */
+.search-input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 30px;
+    border: 1px solid #b0c9e2;
+    margin-bottom: 16px;
+}
+.search-result-item {
+    background: white;
+    padding: 12px;
+    border-radius: 16px;
+    margin-bottom: 8px;
+    border-left: 4px solid #3b6e9e;
+}
+.profile-card { text-align: center; padding: 24px; }
+.big-avatar {
+    width: 88px;
+    height: 88px;
+    background: linear-gradient(135deg, #2c6e9e, #1f4e73);
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+}
+.info-message {
+    background: #fff1cf;
+    padding: 16px;
+    border-radius: 16px;
+    margin-top: 20px;
+}
+.user-posts-container { margin-top: 20px; }
+.delete-post-btn {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-left: auto;
+}
